@@ -1,10 +1,12 @@
-# Variables
-CC := $(CROSS_COMPILE)gcc
+SRC := writer.c
+TARGET = writer
+OBJS := $(SRC:.c=.o)
+CC = $(CROSS_COMPILE)gcc
 
-writer: writer.c
-	gcc writer.c -o writer
+all: $(TARGET)
 
-.PHONY: clean
+$(TARGET) : $(OBJS)
+	$(CC) $(CFLAGS) $(INCLUDES) $(OBJS) -o $(TARGET) $(LDFLAGS)
+
 clean:
-	rm -f writer  $(wildcard *.o)
-
+	-rm -f *.o $(TARGET) *.elf *.map

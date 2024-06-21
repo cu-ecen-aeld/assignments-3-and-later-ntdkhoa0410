@@ -19,7 +19,7 @@ int main (int argc, char * argv[]){
     	const char *writestr = argv[2];
     	
     	//Open the file to WRITE
-    	int fd = open (writefile, O_WRONLY | O_TRUNC);
+	int fd = open(writefile, O_WRONLY | O_CREAT | O_TRUNC, S_IRWXU);
     	if (fd == -1){
     		syslog(LOG_ERR, "Error opening file : %s", writefile);
     		closelog();

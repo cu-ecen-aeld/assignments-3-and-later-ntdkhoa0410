@@ -1,5 +1,10 @@
 #include "systemcalls.h"
-
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 /**
  * @param cmd the command to execute with system()
  * @return true if the command in @param cmd was executed
@@ -9,15 +14,15 @@
 */
 bool do_system(const char *cmd)
 {
-
-/*
- * TODO  add your code here
- *  Call the system() function with the command set in the cmd
- *   and return a boolean true if the system() call completed with success
- *   or false() if it returned a failure
-*/
-
-    return true;
+	// call a system() with a command input
+	int return_value;
+	return_value = system (cmd);
+	if (return_value == -1){
+		return false;
+	}
+	else {
+		return true;
+	}
 }
 
 /**
@@ -45,10 +50,7 @@ bool do_exec(int count, ...)
         command[i] = va_arg(args, char *);
     }
     command[count] = NULL;
-    // this line is to avoid a compile warning before your implementation is complete
-    // and may be removed
-    command[count] = command[count];
-
+	va_end(args);
 /*
  * TODO:
  *   Execute a system command by calling fork, execv(),
@@ -58,10 +60,47 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
-
-    va_end(args);
-
-    return true;
+	pid_t pid_fork, pid_wait;
+	int status; // check if wait is done
+	pid_fork = fork();
+	// if fork() is not done correctly
+    	if(pid_fork == -1)
+    	{
+	    	perror("ERROR fork");
+		return false;
+    	}
+    	// if fork() successfully, do execv()
+	else if (pid_fork == 0)
+	{
+	    int ret;
+	    ret = execv(command[0],command);
+	    // execv() fails
+	    if (ret == -1)
+	    {
+	    	perror("ERROR execv");
+	    	exit(-1);
+	    } 
+    	}
+    	
+    	pid_wait = wait(&status);
+    	if(pid_wait == -1)
+    	{
+	    perror("ERROR wait");
+	    return false;
+    	} 
+    	else if (WIFEXITED(status)) 
+    	{
+        	if (WEXITSTATUS(status) != 0) 
+        	{
+            		perror("wait");
+            		return false;
+            	}
+    	        else 
+        	{
+            		return true;
+        	}          	
+        }  
+    return false;
 }
 
 /**
@@ -73,9 +112,9 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
 {
     va_list args;
     va_start(args, count);
-    char * command[count+1];
+    char *command[count + 1];
     int i;
-    for(i=0; i<count; i++)
+    for (i = 0; i < count; i++)
     {
         command[i] = va_arg(args, char *);
     }
@@ -83,17 +122,54 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
     command[count] = command[count];
-
-
-/*
- * TODO
- *   Call execv, but first using https://stackoverflow.com/a/13784315/1446624 as a refernce,
- *   redirect standard out to a file specified by outputfile.
- *   The rest of the behaviour is same as do_exec()
- *
-*/
-
     va_end(args);
+    // open the file to write, if fails, return false
+    int fd = open(outputfile, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+    if (fd < 0)
+    {
+        perror("open");
+        return false;
+    }
 
-    return true;
+    // fork process
+    int kidpid;
+    switch (kidpid = fork())
+    {
+    case -1:
+        // false if fails to fork
+        perror("fork");
+        close(fd);
+        return false;
+    case 0:
+        if (dup2(fd, 1) < 0)
+        {
+            perror("dup2");
+            close(fd);
+            exit(-1);
+        }
+        int ret = execv(command[0], command);
+        if (ret == -1)
+        {
+            perror("execvp");
+            close(fd);
+            exit(-1);
+        }
+    }
+    // Wait for child termination
+    int status;
+    if (waitpid(kidpid, &status, 0) == -1)
+    {
+        perror("waitpid");
+        close(fd);
+        return false;
+    }
+    close(fd);
+    return WIFEXITED(status) && (WEXITSTATUS(status) == 0);
+    /*
+     * TODO
+     *   Call execv, but first using https://stackoverflow.com/a/13784315/1446624 as a refernce,
+     *   redirect standard out to a file specified by outputfile.
+     *   The rest of the behaviour is same as do_exec()
+     *
+     */
 }

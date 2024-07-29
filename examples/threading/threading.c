@@ -10,25 +10,33 @@
 
 void *threadfunc(void *thread_param)
 {
-
     // TODO: wait, obtain mutex, wait, release mutex as described by thread_data structure
     // hint: use a cast like the one below to obtain thread arguments from your parameter
     struct thread_data *thread_func_args = (struct thread_data *)thread_param;
     int wait_to_obtain_ms = thread_func_args->wait_to_obtain_ms;
     int wait_to_release_ms = thread_func_args->wait_to_release_ms;
     pthread_mutex_t *mutex = thread_func_args->mutex;
-
     // sleep to some ms
-    usleep(wait_to_obtain_ms);
-    // obtain mutex
-    pthread_mutex_lock(&mutex);
-    // wait to release
-    usleep(wait_to_release_ms);
-    // release the lock
-    pthread_mutex_unlock(&mutex);
-    // set the flag to true
-    thread_func_args->thread_complete_success = true;
-
+    usleep(wait_to_obtain_ms * 1000);
+    int mutex_ret = pthread_mutex_lock(mutex);
+    if (mutex_ret != 0)
+    {
+        // error case unable to grab the mutex
+        thread_func_args->thread_complete_success = false;
+    }
+    else
+    {
+        usleep(wait_to_release_ms * 1000);
+        mutex_ret = pthread_mutex_unlock(thread_func_args->mutex);
+        if (mutex_ret != 0)
+        {
+            thread_func_args->thread_complete_success = false;
+        }
+        else
+        {
+            thread_func_args->thread_complete_success = true;
+        }
+    }
     return thread_param;
 }
 
